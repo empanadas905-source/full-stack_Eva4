@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Administración</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container">
+            <span class="navbar-brand fw-bold">⚙️ Panel Clínico Administrativo</span>
+            <a href="/index.html" class="btn btn-sm btn-light">Salir al Inicio</a>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm p-4 bg-white">
+                    <h4 id="formTitle" class="text-primary mb-3">Registrar Paciente</h4>
+                    <form id="pacienteForm">
+                        <input type="hidden" id="pacienteId">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre Completo</label>
+                            <input type="text" id="nombre" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">RUT</label>
+                            <input type="text" id="rut" class="form-control" placeholder="12.345.678-9" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Edad</label>
+                            <input type="number" id="edad" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Previsión</label>
+                            <select id="prevision" class="form-select">
+                                <option value="Fonasa">Fonasa</option>
+                                <option value="Isapre">Isapre</option>
+                                <option value="Particular">Particular</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100 fw-bold" id="btnSubmit">Guardar Paciente</button>
+                        <button type="button" class="btn btn-secondary w-100 mt-2 d-none" id="btnCancelar" onclick="resetForm()">Cancelar Edición</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card shadow-sm p-4 bg-white">
+                    <h4 class="text-muted mb-3">Listado de Pacientes Activos</h4>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>RUT</th>
+                                    <th>Edad</th>
+                                    <th>Previsión</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaPacientes">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // REQUISITO: Leer registros (Read)
+        async function cargarPacientes() {
+            const res = await fetch('/api/pacientes');
+            const pacientes = await res.json();
+            
+            const tbody = document.getElementById('tablaPacientes');
+            tbody.innerHTML = '';
+            
+            pacientes.forEach(p => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${p.nombre}</td>
+                        <td>${p.rut}</td>
+                        <td>${p.edad} años</td>
+                        <td><span class="badge bg-info text-dark">${p.prevision}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-warning me-1" onclick="editarPaciente(${p.id})">Editar</button>
+                            <button class="btn btn-sm btn-danger" onclick="eliminarPaciente(${p.id})">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // REQUISITO: Enviar datos (Create o Update)
+        document.getElementById('pacienteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('pacienteId').value;
+            const payload = {
+                nombre: document.getElementById('nombre').value,
+                rut: document.getElementById('rut').value,
+                edad: document.getElementById('edad').value,
+                prevision: document.getElementById('prevision').value
+            };
+
+            let url = '/api/pacientes';
+            let method = 'POST';
+
+            if(id) { 
+                url = `/api/pacientes/${id}`;
+                method = 'PUT';
+            }
+
+            await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            resetForm();
+            cargarPacientes();
+        });
+
+        // REQUISITO: Cargar datos en el formulario para Editar
+        async function editarPaciente(id) {
+            const res = await fetch(`/api/pacientes/${id}`);
+            const p = await res.json();
+
+            document.getElementById('pacienteId').value = p.id;
+            document.getElementById('nombre').value = p.nombre;
+            document.getElementById('rut').value = p.rut;
+            document.getElementById('edad').value = p.edad;
+            document.getElementById('prevision').value = p.prevision;
+
+            document.getElementById('formTitle').textContent = "Modificar Registro";
+            document.getElementById('btnSubmit').className = "btn btn-warning w-100 fw-bold";
+            document.getElementById('btnCancelar').classList.remove('d-none');
+        }
+
+        // REQUISITO: Eliminar Registro (Delete)
+        async function eliminarPaciente(id) {
+            if(confirm('¿Está seguro de eliminar este registro?')) {
+                await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
+                cargarPacientes();
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('pacienteForm').reset();
+            document.getElementById('pacienteId').value = '';
+            document.getElementById('formTitle').textContent = "Registrar Paciente";
+            document.getElementById('btnSubmit').className = "btn btn-success w-100 fw-bold";
+            document.getElementById('btnCancelar').classList.add('d-none');
+        }
+
+        // Cargar la tabla automáticamente al abrir la página
+        cargarPacientes();
+    </script>
+</body>
+</html>
