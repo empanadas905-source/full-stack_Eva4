@@ -44,10 +44,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Redirige a la ruta del panel de administración
                     window.location.href = '/admin';
                 } else {
-                    // Muestra el mensaje de error de la rúbrica
                     alertBox.textContent = data.message;
                     alertBox.classList.remove('d-none');
                 }

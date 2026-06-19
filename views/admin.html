@@ -71,7 +71,6 @@
     </div>
 
     <script>
-        // REQUISITO: Leer registros (Read)
         async function cargarPacientes() {
             const res = await fetch('/api/pacientes');
             const pacientes = await res.json();
@@ -95,7 +94,6 @@
             });
         }
 
-        // REQUISITO: Enviar datos (Create o Update) iglujbkwlwuf
         document.getElementById('pacienteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('pacienteId').value;
@@ -124,7 +122,6 @@
             cargarPacientes();
         });
 
-        // REQUISITO: Cargar datos en el formulario para Editar
         async function editarPaciente(id) {
             const res = await fetch(`/api/pacientes/${id}`);
             const p = await res.json();
@@ -140,7 +137,6 @@
             document.getElementById('btnCancelar').classList.remove('d-none');
         }
 
-        // REQUISITO: Eliminar Registro (Delete)
         async function eliminarPaciente(id) {
             if(confirm('¿Está seguro de eliminar este registro?')) {
                 await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
@@ -156,7 +152,6 @@
             document.getElementById('btnCancelar').classList.add('d-none');
         }
 
-        // Cargar la tabla automáticamente al abrir la página
         cargarPacientes();
     </script>
 </body>
