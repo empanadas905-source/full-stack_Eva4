@@ -50,6 +50,22 @@
             <div class="col-md-8">
                 <div class="card shadow-sm p-4 bg-white">
                     <h4 class="text-muted mb-3">Listado de Pacientes Activos</h4>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <input type="text" id="buscarNombre" class="form-control" placeholder="Buscar por nombre">
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" id="buscarRut" class="form-control" placeholder="Buscar por RUT">
+                        </div>
+                        <div class="col-md-3 d-flex gap-2">
+                            <button type="button" class="btn btn-primary w-100" onclick="buscarPacientes()">Buscar</button>
+                            <button type="button" class="btn btn-outline-secondary w-100" onclick="limpiarBusqueda()">Limpiar</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div id="alertPlaceholder"></div>
+                        <button type="button" class="btn btn-success" onclick="exportPacientesExcel()">Exportar Excel</button>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-secondary">
@@ -70,14 +86,31 @@
         </div>
     </div>
 
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script>
-        async function cargarPacientes() {
-            const res = await fetch('/api/pacientes');
+        let pacientesCache = [];
+
+        async function cargarPacientes(nombre = '', rut = '') {
+            const params = new URLSearchParams();
+            if (nombre) params.append('nombre', nombre);
+            if (rut) params.append('rut', rut);
+
+            const res = await fetch('/api/pacientes' + (params.toString() ? `?${params.toString()}` : ''));
             const pacientes = await res.json();
-            
+
+            pacientesCache = pacientes;
+            renderPacientes(pacientes);
+        }
+
+        function renderPacientes(pacientes) {
             const tbody = document.getElementById('tablaPacientes');
             tbody.innerHTML = '';
-            
+
+            if (!pacientes.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">No se encontraron pacientes</td></tr>`;
+                return;
+            }
+
             pacientes.forEach(p => {
                 tbody.innerHTML += `
                     <tr>
@@ -97,9 +130,17 @@
         document.getElementById('pacienteForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const id = document.getElementById('pacienteId').value;
+            const rutValue = document.getElementById('rut').value.trim();
+
+            if (!validateRut(rutValue)) {
+                showAlert('El RUT ingresado no es válido.', 'danger');
+                document.getElementById('rut').focus();
+                return;
+            }
+
             const payload = {
-                nombre: document.getElementById('nombre').value,
-                rut: document.getElementById('rut').value,
+                nombre: document.getElementById('nombre').value.trim(),
+                rut: rutValue,
                 edad: document.getElementById('edad').value,
                 prevision: document.getElementById('prevision').value
             };
@@ -107,19 +148,26 @@
             let url = '/api/pacientes';
             let method = 'POST';
 
-            if(id) { 
+            if (id) {
                 url = `/api/pacientes/${id}`;
                 method = 'PUT';
             }
 
-            await fetch(url, {
-                method: method,
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
+            const data = await res.json();
+            if (!res.ok) {
+                showAlert(data.error || 'Ocurrió un error al guardar el paciente.', 'danger');
+                return;
+            }
+
+            showAlert(data.message || 'Paciente guardado correctamente.', 'success');
             resetForm();
-            cargarPacientes();
+            cargarPacientes(document.getElementById('buscarNombre').value.trim(), document.getElementById('buscarRut').value.trim());
         });
 
         async function editarPaciente(id) {
@@ -138,11 +186,102 @@
         }
 
         async function eliminarPaciente(id) {
-            if(confirm('¿Está seguro de eliminar este registro?')) {
-                await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
-                cargarPacientes();
+            if (confirm('¿Está seguro de eliminar este registro?')) {
+                const res = await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showAlert(data.error || 'Error al eliminar el paciente.', 'danger');
+                    return;
+                }
+                showAlert(data.message || 'Paciente eliminado correctamente.', 'success');
+                cargarPacientes(document.getElementById('buscarNombre').value.trim(), document.getElementById('buscarRut').value.trim());
             }
         }
+
+        function buscarPacientes() {
+            cargarPacientes(document.getElementById('buscarNombre').value.trim(), document.getElementById('buscarRut').value.trim());
+        }
+
+        function limpiarBusqueda() {
+            document.getElementById('buscarNombre').value = '';
+            document.getElementById('buscarRut').value = '';
+            cargarPacientes();
+        }
+
+        function exportPacientesExcel() {
+            if (!pacientesCache.length) {
+                showAlert('No hay pacientes para exportar.', 'warning');
+                return;
+            }
+
+            const data = pacientesCache.map(p => ({
+                Nombre: p.nombre,
+                RUT: p.rut,
+                Edad: p.edad,
+                'Previsión': p.prevision
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(data);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Pacientes');
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'pacientes.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            URL.revokeObjectURL(url);
+            a.remove();
+        }
+
+        function formatRutInput(value) {
+            const cleaned = value.replace(/[^0-9kK]/g, '').toUpperCase();
+            if (!cleaned) return '';
+            if (cleaned.length === 1) return cleaned;
+
+            const dv = cleaned.slice(-1);
+            const number = cleaned.slice(0, -1);
+            const formattedNumber = number.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            return `${formattedNumber}-${dv}`;
+        }
+
+        function validateRut(rut) {
+            const clean = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+            if (!/^\d+[0-9K]$/.test(clean)) return false;
+
+            const body = clean.slice(0, -1).split('').reverse();
+            const dv = clean.slice(-1);
+            let sum = 0;
+            let multiplier = 2;
+
+            for (const digit of body) {
+                sum += Number(digit) * multiplier;
+                multiplier = multiplier === 7 ? 2 : multiplier + 1;
+            }
+
+            const expectedDv = 11 - (sum % 11);
+            const dvCalculated = expectedDv === 11 ? '0' : expectedDv === 10 ? 'K' : String(expectedDv);
+            return dvCalculated === dv;
+        }
+
+        function showAlert(message, type = 'danger', timeout = 5000) {
+            const placeholder = document.getElementById('alertPlaceholder');
+            placeholder.innerHTML = `<div class="alert alert-${type} py-2 mb-0" role="alert">${message}</div>`;
+            if (timeout) {
+                setTimeout(() => {
+                    if (placeholder.innerHTML.includes(message)) {
+                        placeholder.innerHTML = '';
+                    }
+                }, timeout);
+            }
+        }
+
+        document.getElementById('rut').addEventListener('input', (event) => {
+            const formatted = formatRutInput(event.target.value);
+            event.target.value = formatted;
+        });
 
         function resetForm() {
             document.getElementById('pacienteForm').reset();

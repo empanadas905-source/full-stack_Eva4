@@ -11,6 +11,8 @@ Este proyecto implementa un sistema de gestión básico para una clínica, permi
 
 Este sistema está diseñado para una **Clínica** y se enfoca en el **área de gestión de pacientes**. Resuelve el problema de mantener un registro digitalizado y accesible de la información de los pacientes, permitiendo a los administradores y personal autorizado realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) sobre los datos de los pacientes de manera eficiente.
 
+Adicionalmente, el panel administrativo permite buscar pacientes por nombre y/o RUT, exportar el listado a Excel y valida automáticamente que el RUT no se repita. El formulario de paciente también formatea el RUT automáticamente con puntos y guion mientras se escribe.
+
 ## 3. Requisitos Previos
 
 Para ejecutar este proyecto, es necesario tener instalados los siguientes componentes:
@@ -73,10 +75,13 @@ Una vez que el servidor esté en ejecución:
 *   **Acceso al Login:** Abra su navegador y navegue a `http://localhost:3000/login`.
 *   **Panel de Administración:** Después de iniciar sesión con las credenciales de prueba, será redirigido al panel de administración (`http://localhost:3000/admin`). Desde aquí, podrá:
     *   Listar todos los pacientes registrados.
+    *   Buscar pacientes por nombre y/o RUT.
+    *   Exportar el listado de pacientes a un archivo Excel.
     *   Ver los detalles de un paciente específico.
     *   Crear nuevos registros de pacientes.
     *   Actualizar la información de pacientes existentes.
     *   Eliminar registros de pacientes.
+    *   Evitar la creación de pacientes con RUT duplicado; el sistema valida el RUT en el formulario.
 
 ## 8. Estructura del Proyecto
 
@@ -102,3 +107,8 @@ full-stack_Eva4/
 ├── server.js               # Punto de entrada del servidor Express, define rutas y levanta la aplicación
 └── README.md               # Este archivo
 ```
+
+
+
+
+
